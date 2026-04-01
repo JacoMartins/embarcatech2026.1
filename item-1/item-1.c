@@ -6,7 +6,8 @@
 #define button_a 5
 #define led_b 12
 
-bool repeating_timer_callback(struct repeating_timer *t) {
+bool repeating_timer_callback(struct repeating_timer *t)
+{
     return true;
 }
 
@@ -21,33 +22,32 @@ int main()
     gpio_pull_up(button_a);
 
     int count = 0;
+    int seconds = 0;
     bool blinking = false;
     bool led_state = false;
     bool last_button_state = true;
 
     struct repeating_timer timer;
 
-    while (true) {
+    while (true)
+    {
         bool button_a_state = gpio_get(button_a);
 
-        if (last_button_state == true && button_a_state == false) {           
+        if (last_button_state == true && button_a_state == false)
+        {
             count++;
         }
-        
+
         last_button_state = button_a_state;
-        
-        if (count >= 5) {
-            blinking = true;
 
-            while (blinking) {
-                gpio_put(led_b, 255);
-                add_repeating_timer_ms(500, repeating_timer_callback, NULL, &timer);
-                gpio_put(led_b, 0);
-                add_repeating_timer_ms(500, repeating_timer_callback, NULL, &timer);
+        if (count >= 5)
+        {
+            while (seconds < 10)
+            {
+                gpio_put(led_b, blinking);
+                blinking = !blinking;
+                seconds++;
             }
-            gpio_put(led_b, 0);
         }
-
-        sleep_ms(10); // delay para evitar leituras inconsistentes,
     }
 }
