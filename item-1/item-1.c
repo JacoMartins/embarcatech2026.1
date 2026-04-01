@@ -1,15 +1,10 @@
-#include "stdio.h"
-#include "pico/stdlib.h"
-#include "hardware/timer.h"
+#include <stdio.h>
 #include <hardware/gpio.h>
+#include "pico/stdlib.h"
+#include "pico/time.h"
 
 #define button_a 5
 #define led_b 12
-
-bool repeating_timer_callback(struct repeating_timer *t)
-{
-    return true;
-}
 
 int main()
 {
@@ -20,33 +15,58 @@ int main()
     gpio_init(button_a);
     gpio_set_dir(button_a, GPIO_IN);
     gpio_pull_up(button_a);
-
+    
     int count = 0;
-    int seconds = 0;
+    
     bool blinking = false;
-    bool led_state = false;
-    bool last_button_state = true;
-
-    struct repeating_timer timer;
-
+    bool button_a_last_state = false;
+    bool last_led_state = false;
+    absolute_time_t end_blinking;
+    absolute_time_t toggle_interval;
+    absolute_time_t software_debouncer;
+    
     while (true)
     {
-        bool button_a_state = gpio_get(button_a);
-
-        if (last_button_state == true && button_a_state == false)
+        if (!blinking)
         {
-            count++;
-        }
-
-        last_button_state = button_a_state;
-
-        if (count >= 5)
-        {
-            while (seconds < 10)
+            bool button_a_state = !gpio_get(button_a);
+            
+            if (button_a_last_state != button_a_state)
             {
-                gpio_put(led_b, blinking);
-                blinking = !blinking;
-                seconds++;
+                button_a_last_state = button_a_state;
+                
+                if (!button_a_state)
+                {
+                    software_debouncer = delayed_by_ms(get_absolute_time(), 50);
+                }
+                
+                if(time_reached(software_debouncer)) 
+                {
+                    count++;
+                }
+            }
+            
+            if (count == 5)
+            {
+                end_blinking = delayed_by_ms(get_absolute_time(), 10000);
+                toggle_interval = delayed_by_ms(get_absolute_time(), 50);
+                blinking = true;
+                count = 0;
+            }
+        }
+        else
+        {
+            if (time_reached(toggle_interval))
+            {
+                gpio_put(led_b, !last_led_state);
+                last_led_state = !last_led_state;
+                toggle_interval = delayed_by_ms(get_absolute_time(), 50);
+            }
+            
+            if (time_reached(end_blinking))
+            {
+                blinking = false;
+                gpio_put(led_b, false);
             }
         }
     }
