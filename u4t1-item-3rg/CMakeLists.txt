@@ -23,35 +23,40 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico CACHE STRING "Board type")
+set(PICO_BOARD pico_w CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(item-3b C CXX ASM)
+project(u4t1-item-3rg C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(item-3b item-3b.c )
+add_executable(u4t1-item-3rg u4t1-item-3rg.c )
 
-pico_set_program_name(item-3b "item-3b")
-pico_set_program_version(item-3b "0.1")
+pico_set_program_name(u4t1-item-3rg "u4t1-item-3rg")
+pico_set_program_version(u4t1-item-3rg "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(item-3b 0)
-pico_enable_stdio_usb(item-3b 0)
+pico_enable_stdio_uart(u4t1-item-3rg 0)
+pico_enable_stdio_usb(u4t1-item-3rg 1)
 
 # Add the standard library to the build
-target_link_libraries(item-3b
+target_link_libraries(u4t1-item-3rg
         pico_stdlib hardware_pwm)
 
 # Add the standard include files to the build
-target_include_directories(item-3b PRIVATE
+target_include_directories(u4t1-item-3rg PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-pico_add_extra_outputs(item-3b)
+# Add any user requested libraries
+target_link_libraries(u4t1-item-3rg 
+        
+        )
+
+pico_add_extra_outputs(u4t1-item-3rg)
 
