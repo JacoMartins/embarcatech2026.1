@@ -4,8 +4,6 @@
 #include "hardware/pwm.h"
 
 
-const uint LED_R = 13;
-const uint LED_G = 11;
 const uint LED_B = 12;
 const uint16_t PERIOD = 1000;    // periodo PWM (valor maximo do contador)
 const float DIVIDER_PWM = 12.5; // divisor fracional do clock para o PWM
