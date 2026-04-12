@@ -44,6 +44,13 @@ void microphone_capture(uint8_t *buffer)
 {
     print_oled("[...] Capturando 5s.");
 
+    // garante que o mux do ADC aponta para o microfone (GP28 = canal 2)
+    // outras leituras (joystick, temperatura) podem ter trocado o canal
+    adc_select_input(2);
+
+    // descarta amostras residuais no FIFO de leituras anteriores
+    adc_fifo_drain();
+
     // requisita um canal DMA livre
     int dma_chan = dma_claim_unused_channel(true);
 
