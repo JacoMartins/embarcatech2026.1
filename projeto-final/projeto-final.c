@@ -3,11 +3,19 @@
 #include <stdio.h>
 #include "hardware/i2c.h"
 #include "libs/ssd1306.c"
+#include "libs/lwipopts.h"
+#include "lwip/tcp.h"
+#include "lwip/ip_addr.h"
+#include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 
 #define UART0_PORT 0
 
+#define WIFI_SSID "OI_FIBRA_Casa Nova_5G"
+#define WIFI_PASSWORD "c4s4n0v4"
+
 const int linha_px = 14;
+
 
 void print_oled(int x, int y, const char *str)
 {
@@ -15,18 +23,39 @@ void print_oled(int x, int y, const char *str)
     ssd1306_show();
 }
 
+
 int main()
 {
-    stdio_init_all();
-    ssd1306_init();
-
     int linha = 0;
     int linha_exibivel = 0;
     int px_linha_y = 0;
     
+    stdio_init_all();
+    ssd1306_init();
+
+    if (cyw43_arch_init())
+    {
+        print_oled(0, 0, "Erro no driver Wi-Fi!");
+
+        linha++;
+        linha_exibivel++;
+
+        return 1;
+    }
+
+    cyw43_arch_enable_sta_mode();
+
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 15000)) {
+        print_oled(0, 0, "Erro ao tentar Wi-Fi!");
+        
+        linha++;
+        linha_exibivel++;
+        
+        return 1;
+    }
+    
     ssd1306_clear();
-    ssd1306_draw_string(0, 0, "====Projeto Final====");
-    ssd1306_show();
+    print_oled(0, px_linha_y, "Wifi Conectado");
     
     linha++;
     linha_exibivel++;
