@@ -33,7 +33,7 @@ int main()
     stdio_init_all();
     ssd1306_init();
 
-    if (cyw43_arch_init())
+    if (cyw43_arch_init() == 1)
     {
         print_oled(0, 0, "Erro no driver Wi-Fi!");
 
