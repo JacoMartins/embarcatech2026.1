@@ -1,0 +1,47 @@
+;
+; Programa PIO para controle de LEDs WS2812B (NeoPixel)
+; Baseado no exemplo oficial do Raspberry Pi Pico SDK
+;
+; Temporização para 800 kHz com clock de 125 MHz e divisor 15.625:
+;   T1=2, T2=5, T3=3 → 10 ciclos por bit → 125 MHz / (800 kHz × 10) = 15.625
+;
+
+.program ws2812
+.side_set 1
+
+.define public T1 2
+.define public T2 5
+.define public T3 3
+
+.wrap_target
+bitloop:
+    out x, 1       side 0 [T3 - 1]  ; bit sai pelo registrador, linha baixa por T3
+    jmp !x do_zero side 1 [T1 - 1]  ; linha alta por T1; salta se bit era 0
+do_one:
+    jmp  bitloop   side 1 [T2 - 1]  ; bit 1: permanece alto por T2
+do_zero:
+    nop            side 0 [T2 - 1]  ; bit 0: vai baixo por T2
+.wrap
+
+% c-sdk {
+#include "hardware/clocks.h"
+
+// Inicializa a state machine PIO para saída WS2812B
+static inline void ws2812_program_init(PIO pio, uint sm, uint offset,
+                                       uint pin, float freq, bool rgbw) {
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    pio_sm_config c = ws2812_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_out_shift(&c, false, true, rgbw ? 32 : 24);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+    int   cycles_per_bit = ws2812_T1 + ws2812_T2 + ws2812_T3;
+    float div = clock_get_hz(clk_sys) / (freq * cycles_per_bit);
+    sm_config_set_clkdiv(&c, div);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
