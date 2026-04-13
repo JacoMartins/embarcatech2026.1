@@ -1,6 +1,6 @@
 # Projeto Final — Embarcatech 2026.1
 
-Monitor residencial IoT baseado na **BitDogLab V6** (Raspberry Pi Pico W) com servidor HTTP embarcado, captura de áudio, controle de relés e feedback visual/sonoro em tempo real.
+Monitor de tomadas inteligentes IoT baseado na **BitDogLab V6** (Raspberry Pi Pico W) com servidor HTTP embarcado, captura de áudio, controle de relés e feedback visual/sonoro em tempo real.
 
 **Autor:** Jacó Alves Martins Barros  
 **Curso:** Embarcatech 2026.1
