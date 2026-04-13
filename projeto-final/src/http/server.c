@@ -14,6 +14,30 @@
 
 #define HTTP_PORT 80
 
+// Função auxiliar para traduzir os erros do lwIP para texto
+static const char* lwip_err_to_str(err_t err) {
+    switch (err) {
+        case ERR_OK:         return "OK";
+        case ERR_MEM:        return "ERR_MEM";
+        case ERR_BUF:        return "ERR_BUF";
+        case ERR_TIMEOUT:    return "ERR_TIMEOUT";
+        case ERR_RTE:        return "ERR_RTE";
+        case ERR_INPROGRESS: return "ERR_INPROG";
+        case ERR_VAL:        return "ERR_VAL";
+        case ERR_WOULDBLOCK: return "ERR_BLOCK";
+        case ERR_USE:        return "ERR_USE";
+        case ERR_ALREADY:    return "ERR_ALREADY";
+        case ERR_ISCONN:     return "ERR_ISCONN";
+        case ERR_CONN:       return "ERR_CONN";
+        case ERR_IF:         return "ERR_IF";
+        case ERR_ABRT:       return "ERR_ABRT";
+        case ERR_RST:        return "ERR_RST";
+        case ERR_CLSD:       return "ERR_CLSD";
+        case ERR_ARG:        return "ERR_ARG";
+        default:             return "ERR_UNK"; // Desconhecido
+    }
+}
+
 // Desregistra todos os callbacks, libera o estado da conexão e fecha o socket TCP
 static void http_close_conn(struct tcp_pcb *pcb, HttpConn *conn)
 {
@@ -32,20 +56,36 @@ static err_t http_sent_cb(void *arg, struct tcp_pcb *pcb, u16_t len)
 {
     HttpConn *conn = (HttpConn *)arg;
 
+    // Se todos os dados já foram enfileirados com sucesso
     if (conn->send_remaining == 0) {
-        // todos os dados foram enviados — encerra a conexão
         http_close_conn(pcb, conn);
         return ERR_OK;
     }
 
-    // calcula o próximo chunk respeitando o espaço disponível no buffer TCP
+    // Limita a um segmento TCP por vez (TCP_MSS = 1460 bytes).
     uint16_t chunk = conn->send_remaining;
     if (chunk > tcp_sndbuf(pcb)) chunk = tcp_sndbuf(pcb);
+    if (chunk > TCP_MSS)         chunk = TCP_MSS;
 
-    tcp_write(pcb, conn->send_ptr, chunk, TCP_WRITE_FLAG_COPY);
-    tcp_output(pcb);
-    conn->send_ptr       += chunk;
-    conn->send_remaining -= chunk;
+    if (chunk > 0) {
+        err_t err = tcp_write(pcb, conn->send_ptr, chunk, 0);
+
+        if (err == ERR_OK) {
+            tcp_output(pcb);
+            conn->send_ptr       += chunk;
+            conn->send_remaining -= chunk;
+
+            // Fecha imediatamente ao enfileirar o último chunk.
+            // tcp_close enfileira o FIN *depois* dos dados já escritos,
+            // então o cliente recebe tudo + FIN em ordem e conclui o download.
+            // Aguardar o ACK (próximo http_sent_cb) atrasa o FIN e deixa
+            // o cliente preso em 100% esperando o encerramento da conexão.
+            if (conn->send_remaining == 0) {
+                http_close_conn(pcb, conn);
+            }
+        }
+        // ERR_MEM: ponteiros não avançados, http_poll_cb vai tentar novamente
+    }
 
     return ERR_OK;
 }
@@ -102,11 +142,30 @@ static err_t http_recv_cb(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t 
     return ERR_OK;
 }
 
+// Chamado pelo lwIP periodicamente enquanto a conexão está ativa.
+// Serve como mecanismo de retry quando http_sent_cb falhou com ERR_MEM:
+// nesse caso nada foi escrito, http_sent_cb não voltará a ser chamado por ACK,
+// e o poll garante que tentaremos de novo assim que houver memória disponível.
+static err_t http_poll_cb(void *arg, struct tcp_pcb *pcb)
+{
+    HttpConn *conn = (HttpConn *)arg;
+    if (conn == NULL) { tcp_close(pcb); return ERR_OK; }
+    if (conn->send_remaining > 0) {
+        // reutiliza a lógica do http_sent_cb passando len=0
+        return http_sent_cb(arg, pcb, 0);
+    }
+    return ERR_OK;
+}
+
 // Chamado pelo lwIP em caso de erro fatal na conexão (ex: reset pelo cliente)
 static void http_error_cb(void *arg, err_t err)
 {
-    print_oled("[HTTP] Erro TCP.");
-    route_audio_conn_error((HttpConn *)arg);  // limpa estado de áudio pendente se necessário
+    // ERR_RST e ERR_CLSD são normais: ocorrem quando o cliente (Postman/browser)
+    // fecha a conexão após receber a resposta completa. Não imprime no OLED.
+    if (err != ERR_RST && err != ERR_CLSD) {
+        print_oled("[HTTP] Erro TCP.");
+    }
+    route_audio_conn_error((HttpConn *)arg);
     if (arg) free(arg);
 }
 
@@ -123,6 +182,7 @@ static err_t http_accept_cb(void *arg, struct tcp_pcb *client_pcb, err_t err)
     tcp_recv(client_pcb, http_recv_cb);
     tcp_sent(client_pcb, http_sent_cb);
     tcp_err(client_pcb,  http_error_cb);
+    tcp_poll(client_pcb, http_poll_cb, 2);  // retry a cada 2 × 500 ms = 1 s
 
     print_oled("[HTTP] Conectado.");
     return ERR_OK;

@@ -5,6 +5,7 @@
  * @version 1.0.0
  */
 
+#include <stdio.h>
 #include "hardware/adc.h"
 #include "hardware/dma.h"
 #include "microphone.h"
@@ -42,8 +43,10 @@ void microphone_init()
 // Esta função bloqueia até a transferência completar.
 void microphone_capture(uint8_t *buffer)
 {
-    print_oled("[...] Capturando 5s.");
-
+    char oled_msg[32];
+    snprintf(oled_msg, sizeof(oled_msg), "[...] Capturando %ds.", AUDIO_DURATION_S);
+    print_oled(oled_msg);
+    
     // garante que o mux do ADC aponta para o microfone (GP28 = canal 2)
     // outras leituras (joystick, temperatura) podem ter trocado o canal
     adc_select_input(2);

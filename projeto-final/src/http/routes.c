@@ -24,21 +24,19 @@ static void send_response(struct tcp_pcb *pcb, HttpConn *conn,
                           const char *headers,
                           const uint8_t *body, uint32_t body_len)
 {
+    // 1. Envia apenas o cabeçalho
     tcp_write(pcb, headers, strlen(headers), TCP_WRITE_FLAG_COPY);
 
+    // 2. Apenas aponta para o áudio, mas NÃO manda enviar o corpo aqui!
     conn->send_ptr       = body;
     conn->send_remaining = body_len;
 
-    // envia o primeiro chunk do corpo agora — o resto vai via http_sent_cb
-    if (body != NULL && body_len > 0) {
-        uint16_t chunk = body_len;
-        if (chunk > tcp_sndbuf(pcb)) chunk = tcp_sndbuf(pcb);
-        tcp_write(pcb, body, chunk, TCP_WRITE_FLAG_COPY);
-        conn->send_ptr       += chunk;
-        conn->send_remaining -= chunk;
-    }
-
+    // 3. Dispara o cabeçalho
     tcp_output(pcb);
+    
+    // Assim que o cabeçalho chegar no navegador, o navegador vai responder "Recebi!".
+    // Isso vai acionar o seu http_sent_cb lá no server.c de forma perfeita,
+    // e o envio do áudio em chunks vai começar no ritmo exato do Wi-Fi.
 }
 
 // GET /status

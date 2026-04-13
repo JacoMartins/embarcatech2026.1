@@ -36,5 +36,9 @@
     "raspberry-pi-pico.cmakeAutoConfigure": false,
     "raspberry-pi-pico.useCmakeTools": true,
     "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.28.6/bin/cmake",
-    "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja"
+    "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
+    "cmake.environment": {
+        "WIFI_SSID": "OI_FIBRA_Casa Nova_2.4G",
+        "WIFI_PASSWORD": "c4s4n0v4"
+    },
 }
